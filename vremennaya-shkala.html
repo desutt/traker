@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Временная шкала жизни, сетка месяцев и потребление контента.">
+  <title>Временная шкала</title>
+  <style>
+    :root { color-scheme:dark; --bg:#0d1117; --panel:#0d1117; --fg:#e6edf3; --muted:#8b949e; --line:#30363d; --green:#238636; --bright:#3fb950; --bright-text:#56d364; --gray:#30363d; --future:#161b22; --month-past:#0e4429; --orange:#ffa657; --gutter:clamp(18px,4vw,48px); }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--fg); background:var(--bg); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; font-size:14px; line-height:1.5; }
+    .page { width:min(980px,100%); margin:0 auto; padding:36px var(--gutter) 56px; }
+    .tracker { overflow:visible; border:1px solid var(--line); border-radius:6px; background:var(--panel); }
+    .topline { display:flex; justify-content:space-between; align-items:center; gap:16px; min-height:52px; padding:12px 20px; border-bottom:1px solid var(--line); color:#c9d1d9; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:14px; }
+    .live { display:inline-flex; align-items:center; gap:7px; padding:0; color:var(--muted); font-family:inherit; font-size:14px; letter-spacing:.02em; }
+    .live::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--bright); }
+    section { padding:22px 20px 25px; }
+    section + section { border-top:1px solid var(--line); }
+    h1,h2,p { margin:0; }
+    h1,h2 { font-size:18px; line-height:1.35; font-weight:600; letter-spacing:0; }
+    .age-value { margin-top:20px; font-size:clamp(32px,5vw,42px); line-height:1.1; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.035em; }
+    .age-line { display:flex; align-items:baseline; flex-wrap:wrap; column-gap:16px; row-gap:3px; }
+    .life-timer { color:var(--muted); font-size:14px; font-variant-numeric:tabular-nums; }
+    .life-area { padding:28px 0 0; }
+    .life-track { height:14px; position:relative; background:#30363d; border:1px solid #3d444d; border-radius:4px; }
+    .life-fill { width:0; height:100%; border-radius:3px; background:var(--bright); }
+    .age-mark { position:absolute; top:50%; z-index:2; height:27px; transform:translate(-50%,-50%); padding:0; border:0; border-radius:0; background:transparent; cursor:pointer; }
+    .age-mark::before { content:""; position:absolute; top:9px; left:50%; width:1px; height:10px; transform:translateX(-50%); background:#c9d1d9; }
+    .age-mark .age-label { position:absolute; top:27px; left:50%; transform:translateX(-50%); color:var(--bright-text); white-space:nowrap; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:15px; font-weight:600; line-height:1; }
+    .age-mark:focus-visible { outline:2px solid var(--bright); outline-offset:4px; }
+    .age-mark:hover .age-pop,.age-mark:focus-visible .age-pop { display:block; }
+    .age-pop { display:none; position:absolute; z-index:5; top:calc(100% + 19px); left:50%; transform:translateX(-50%); width:min(250px,78vw); padding:10px 12px; border:1px solid #3d444d; border-radius:6px; background:#161b22; color:var(--fg); text-align:left; font-size:14px; line-height:1.45; }
+    .age-mark:nth-of-type(1) .age-pop,.age-mark:nth-of-type(2) .age-pop { left:0; transform:none; width:min(230px,calc(100vw - 50px)); }
+    .age-mark:nth-of-type(3) .age-pop { left:auto; right:0; transform:none; width:min(250px,calc(100vw - 50px)); }
+    .age-mark.open .age-pop { display:block; }
+    .age-pop strong { display:block; margin-bottom:3px; font-weight:600; }
+    .age-pop span { display:block; color:var(--muted); }
+    .life-labels { display:flex; justify-content:space-between; margin-top:34px; color:var(--muted); font-size:14px; }
+    .week-heading { margin-bottom:8px; }
+    .month-count { margin-bottom:16px; color:var(--muted); font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:14px; }
+    .month-count strong { color:var(--bright-text); font-size:15px; font-weight:600; }
+    .month-grid { display:grid; grid-template-columns:repeat(40,minmax(0,1fr)); gap:4px; }
+    .month { display:block; width:100%; aspect-ratio:1; min-width:0; border:1px solid #21262d; border-radius:2px; padding:0; background:var(--future); }
+    .month.past { border-color:#176538; background:var(--month-past); }
+    .month.current { border-color:var(--bright); background:var(--bright); }
+    .month:focus-visible { outline:2px solid var(--fg); outline-offset:2px; }
+    .week-tooltip { display:none; position:fixed; z-index:10; pointer-events:none; max-width:270px; padding:8px 10px; border:1px solid #3d444d; border-radius:6px; background:#161b22; color:var(--fg); font-size:14px; line-height:1.5; }
+    .week-tooltip.visible { display:block; }
+    .content-value { display:flex; align-items:baseline; flex-wrap:wrap; gap:5px; margin-top:18px; text-align:left; font-size:clamp(27px,4.4vw,38px); line-height:1.2; font-weight:600; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+    .years-viewed { color:var(--orange); font-weight:700; }
+    .years-total { color:#c9d1d9; font-size:.72em; font-weight:500; letter-spacing:-.01em; }
+    .hours-percent { display:inline-flex; align-items:center; margin-left:5px; padding:2px 7px; border:1px solid #238636; border-radius:12px; background:#0d2818; color:var(--bright-text); font-size:.58em; font-weight:600; letter-spacing:0; white-space:nowrap; }
+    .content-area { padding:20px 0 0; }
+    .content-track { position:relative; height:44px; border:1px solid #3d444d; border-radius:6px; background:#30363d; overflow:hidden; }
+    .content-fill { position:relative; width:0; height:100%; border-radius:5px 0 0 5px; background:var(--orange); }
+    .bar-spent,.bar-potential { position:absolute; top:50%; transform:translateY(-50%); z-index:2; white-space:nowrap; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:14px; font-weight:600; font-variant-numeric:tabular-nums; }
+    .bar-spent { left:10px; color:#1f1308; }
+    .bar-potential { left:50%; transform:translate(-50%,-50%); color:#aeb6c0; }
+    .content-labels { display:flex; justify-content:space-between; margin-top:9px; color:var(--muted); font-size:14px; }
+    .lifespan-labels { display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; color:var(--muted); font-size:14px; }
+    .lifespan-track { position:relative; height:32px; overflow:hidden; border:1px solid #3d444d; border-radius:6px; background:#30363d; }
+    .lifespan-lived { position:absolute; inset:0 auto 0 0; width:0; background:var(--bright); }
+    .lifespan-content { position:absolute; inset:0 auto 0 0; width:0; background:var(--orange); }
+    .lifespan-legend { display:flex; flex-wrap:wrap; gap:10px 24px; margin-top:13px; }
+    .lifespan-item { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px; }
+    .lifespan-item strong { color:var(--fg); font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-weight:600; }
+    .lifespan-swatch { width:9px; height:9px; border-radius:2px; background:var(--bright); }
+    .lifespan-swatch.content { background:var(--orange); }
+    @media(max-width:600px) {
+      .page { padding:18px 12px 32px; }
+      .topline { min-height:46px; padding:10px 14px; }
+      section { padding:18px 14px 22px; }
+      .month-grid { grid-template-columns:repeat(20,minmax(0,1fr)); gap:3px; }
+      .content-track { height:42px; }
+      .bar-spent,.bar-potential { font-size:13px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="tracker">
+      <div class="topline"><span id="tracker-date">LIFE TRACKER</span><span class="live">LIVE</span></div>
+      <section aria-labelledby="life-title">
+        <h1 id="life-title">Время жизни</h1>
+        <div class="age-line"><div class="age-value" id="age-value">—</div><div class="life-timer" id="life-timer"></div></div>
+        <div class="life-area">
+          <div class="life-track" id="life-track">
+            <div class="life-fill" id="life-fill"></div>
+            <button class="age-mark" type="button" style="left:6.25%" aria-label="Возрастная граница 5 лет"><span class="age-label">5</span><span class="age-pop"><strong>5 лет</strong><span>Условная граница раннего периода жизни</span></span></button>
+            <button class="age-mark" type="button" style="left:22.5%" aria-label="Возрастная граница 18 лет"><span class="age-label">18</span><span class="age-pop"><strong>18 лет</strong><span>Условная граница завершения подросткового периода</span></span></button>
+            <button class="age-mark" type="button" style="left:81.25%" aria-label="Условная граница 65 лет"><span class="age-label">65</span><span class="age-pop"><strong>65 лет</strong><span>Условная граница завершения стандартного трудоспособного возраста</span></span></button>
+          </div>
+          <div class="life-labels"><span>0 лет</span><span>80 лет</span></div>
+        </div>
+      </section>
+      <section aria-labelledby="content-title">
+        <h2 id="content-title">Потрачено на потребление контента</h2>
+        <div class="content-value"><span class="years-viewed" id="content-years">—</span><span class="years-total">/ <span id="potential-years">—</span> лет</span><span class="hours-percent" id="hours-percent">—%</span></div>
+        <div class="content-area">
+          <div class="content-track" aria-label="Потрачено часов относительно общего прогнозируемого времени"><div class="content-fill" id="content-fill"><span class="bar-spent" id="hours-spent">— ч</span></div><span class="bar-potential" id="hours-total">— ч</span></div>
+          <div class="content-labels"><span>5 лет</span><span>65 лет</span></div>
+        </div>
+      </section>
+      <section aria-label="Прожитые годы и потребление контента">
+        <div class="lifespan-labels"><span>0 лет</span><span>80 лет · общая длина жизни</span></div>
+        <div class="lifespan-track" role="img" aria-label="Прожитые годы и потребление контента в рамках 80 лет">
+          <div class="lifespan-lived" id="lifespan-lived"></div>
+          <div class="lifespan-content" id="lifespan-content"></div>
+        </div>
+        <div class="lifespan-legend">
+          <div class="lifespan-item"><span class="lifespan-swatch"></span>Прожито <strong id="legend-life-years">—</strong></div>
+          <div class="lifespan-item"><span class="lifespan-swatch content"></span>Потребление контента <strong id="legend-content-years">—</strong></div>
+        </div>
+      </section>
+      <section aria-labelledby="months-title">
+        <h2 class="week-heading" id="months-title">Месяцев прожито</h2>
+        <p class="month-count" id="month-count"><strong id="months-lived">—</strong> / 960 месяцев</p>
+        <div class="month-grid" id="month-grid" aria-label="Сетка месяцев от рождения до 80 лет"></div>
+      </section>
+    </div>
+  </main>
+  <div class="week-tooltip" id="week-tooltip" role="tooltip"></div>
+  <script>
+  (() => {
+    const DAY=86400000, YEAR=365.2425*DAY, BIRTH=new Date(2002,4,18,12,0,0), $=s=>document.querySelector(s), grid=$('#month-grid'), tip=$('#week-tooltip');
+    const addYears=(d,n)=>{const x=new Date(d);x.setFullYear(x.getFullYear()+n);return x;};
+    const fmt=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(n);
+    const fmt1=n=>new Intl.NumberFormat('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1}).format(n);
+    const word=(n,one,few,many)=>{const n10=n%10,n100=n%100;return n100>=11&&n100<=14?many:n10===1?one:n10>=2&&n10<=4?few:many;};
+    const fmtDate=d=>new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'long',year:'numeric'}).format(d);
+    let months=[];
+    function createMonths(){
+      const total=80*12, fragment=document.createDocumentFragment();
+      for(let i=0;i<total;i++){
+        const from=new Date(BIRTH.getFullYear(),BIRTH.getMonth()+i,BIRTH.getDate()), to=new Date(BIRTH.getFullYear(),BIRTH.getMonth()+i+1,BIRTH.getDate()), cell=document.createElement('button');
+        cell.type='button';cell.className='month';cell.tabIndex=-1;cell.setAttribute('aria-label',`Месяц ${i+1}, ${fmtDate(from)}`);
+        cell.addEventListener('pointerenter',e=>showMonth(i,e.clientX,e.clientY));cell.addEventListener('pointermove',e=>moveTip(e.clientX,e.clientY));cell.addEventListener('pointerleave',()=>tip.classList.remove('visible'));
+        cell.addEventListener('focus',()=>showMonth(i,innerWidth/2,innerHeight/2));cell.addEventListener('blur',()=>tip.classList.remove('visible'));
+        fragment.append(cell);months.push({cell,from,to,index:i});
+      }
+      grid.append(fragment);
+    }
+    function moveTip(x,y){tip.style.left=Math.min(x+12,innerWidth-250)+'px';tip.style.top=Math.min(y+14,innerHeight-60)+'px';}
+    function showMonth(i,x,y){const m=months[i], now=new Date(), status=now>=m.from&&now<m.to?'Текущий':now>=m.to?'Прожитый':'Будущий', age=Math.max(0,(m.from-BIRTH)/YEAR), ageMonth=i+1;tip.textContent=`${fmtDate(m.from)} · возраст ${fmt(age)} лет · месяц ${ageMonth} · ${status}`;tip.classList.add('visible');moveTip(x,y);}
+    function projectedHours(start,end){
+      const spans=[[5,7,2],[7,12,4],[12,65,6]];let sum=0;
+      for(const [fromAge,toAge,rate] of spans){const a=addYears(BIRTH,fromAge).getTime(),b=addYears(BIRTH,toAge).getTime(),from=Math.max(start.getTime(),a),to=Math.min(end.getTime(),b);sum+=Math.max(0,to-from)/DAY*rate;}
+      return sum;
+    }
+    function elapsedParts(now){
+      let years=now.getFullYear()-BIRTH.getFullYear(), cursor=new Date(BIRTH);cursor.setFullYear(BIRTH.getFullYear()+years);
+      if(cursor>now){years--;cursor=new Date(BIRTH);cursor.setFullYear(BIRTH.getFullYear()+years);}
+      let months=0;
+      while(true){const next=new Date(cursor);next.setMonth(next.getMonth()+1);if(next<=now){cursor=next;months++;}else break;}
+      let seconds=Math.floor((now-cursor)/1000), totalDays=Math.floor(seconds/86400);seconds%=86400;
+      const weeks=Math.floor(totalDays/7),days=totalDays%7,hours=Math.floor(seconds/3600);seconds%=3600;const minutes=Math.floor(seconds/60);seconds%=60;
+      return {years,months,weeks,days,hours,minutes,seconds};
+    }
+    function update(){
+      const now=new Date(), elapsed=elapsedParts(now), age=Math.max(0,(now-BIRTH)/YEAR), lifeEnd=addYears(BIRTH,80), lifeRatio=Math.max(0,Math.min(1,(now-BIRTH)/(lifeEnd-BIRTH))), whole=elapsed.years, suffix=word(whole,'год','года','лет');
+      const currentMonth=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric'}).format(now).replace(/\s?г\.?$/,'').toLocaleUpperCase('ru-RU');$('#tracker-date').textContent=`LIFE TRACKER / ${currentMonth}`;
+      $('#age-value').textContent=`${whole} ${suffix}`;$('#life-fill').style.width=(lifeRatio*100)+'%';
+      $('#life-timer').textContent=`${elapsed.years} г. · ${elapsed.months} м. · ${elapsed.weeks} н. · ${elapsed.days} д. · ${elapsed.hours} ч. · ${elapsed.minutes} мин · ${elapsed.seconds} сек я живу`;
+      const totalMonths=80*12, monthsLived=Math.max(0,Math.min(totalMonths,elapsed.years*12+elapsed.months));
+      $('#months-lived').textContent=fmt(monthsLived);
+      for(const m of months)m.cell.className='month'+(now>=m.from&&now<m.to?' current':now>=m.to?' past':'');
+      const contentStart=addYears(BIRTH,5), contentEnd=addYears(BIRTH,65), used=projectedHours(contentStart,now), forecast=projectedHours(now,contentEnd), full=used+forecast, percent=full?used/full*100:0;
+      const contentYears=used/(24*365.2425), potentialYears=full/(24*365.2425);
+      $('#content-years').textContent=fmt1(contentYears);$('#potential-years').textContent=fmt1(potentialYears);$('#hours-percent').textContent=`${fmt(percent)}%`;
+      $('#hours-spent').textContent=`${fmt(used)} ч`;$('#hours-total').textContent=`${fmt(full)} ч`;
+      $('#content-fill').style.width=percent+'%';
+      const lifeShare=Math.max(0,Math.min(1,age/80)), contentShare=Math.max(0,Math.min(lifeShare,contentYears/80));
+      $('#lifespan-lived').style.width=(lifeShare*100)+'%';$('#lifespan-content').style.width=(contentShare*100)+'%';
+      $('#legend-life-years').textContent=`${fmt1(age)} лет`;
+      $('#legend-content-years').textContent=`${fmt1(contentYears)} лет`;
+    }
+    document.querySelectorAll('.age-mark').forEach(mark=>mark.addEventListener('click',e=>{e.stopPropagation();const open=!mark.classList.contains('open');document.querySelectorAll('.age-mark.open').forEach(x=>x.classList.remove('open'));mark.classList.toggle('open',open);}));
+    document.addEventListener('click',e=>{if(!e.target.closest('.age-mark'))document.querySelectorAll('.age-mark.open').forEach(x=>x.classList.remove('open'));});
+    createMonths();update();setInterval(update,1000);
+  })();
+  </script>
+</body>
+</html>
